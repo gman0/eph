@@ -21,6 +21,15 @@ func checkPathArg(args []string) error {
 	return nil
 }
 
+func stripTrailingSlash(p string) string {
+	if len(p) > 1 {
+		if p[len(p)-1] == '/' {
+			return p[:len(p)-1]
+		}
+	}
+	return p
+}
+
 func checkQuotaFormat(quota string) bool {
 	return quotaRegexp.MatchString(quota)
 }

@@ -28,7 +28,7 @@ Lowercase M,A,D status codes are used for directories, uppercase for all non-dir
 				return err
 			}
 
-			if err := eph.PrintStatus(args[0]); err != nil {
+			if err := eph.PrintStatus(stripTrailingSlash(args[0])); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

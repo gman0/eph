@@ -22,7 +22,7 @@ The original data restored to its initial location and the ramdisk is unmounted.
 				return err
 			}
 
-			if err := eph.DiscardEphemeral(args[0]); err != nil {
+			if err := eph.DiscardEphemeral(stripTrailingSlash(args[0])); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

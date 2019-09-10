@@ -21,7 +21,7 @@ Ramdisk is merged into the original data and then it's unmounted'.
 				return err
 			}
 
-			if err := eph.Merge(args[0]); err != nil {
+			if err := eph.Merge(stripTrailingSlash(args[0])); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

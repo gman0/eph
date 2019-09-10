@@ -16,8 +16,6 @@ manage ramdisk snapshots
 
 Important: 'squashfs-tools' must be installed on the system and accessible
            from $PATH in order for snapshots to function
-
-
 `,
 		Example: `
 # Create a new snapshot of /foo/bar
@@ -50,7 +48,7 @@ Important: make sure no writes occur to the ramdisk while
 				return err
 			}
 
-			if err := eph.NewSnapshot(args[0], snapshotNewLabel, snapshotNewCompressionAlg, snapshotNewOnline); err != nil {
+			if err := eph.NewSnapshot(stripTrailingSlash(args[0]), snapshotNewLabel, snapshotNewCompressionAlg, snapshotNewOnline); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
@@ -73,7 +71,7 @@ and must not be a parent of any other snapshot(s).
 				return err
 			}
 
-			if err := eph.DeleteSnapshot(args[0], snapshotId); err != nil {
+			if err := eph.DeleteSnapshot(stripTrailingSlash(args[0]), snapshotId); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
@@ -90,7 +88,7 @@ and must not be a parent of any other snapshot(s).
 				return err
 			}
 
-			if err := eph.PrintSnapshotsList(args[0]); err != nil {
+			if err := eph.PrintSnapshotsList(stripTrailingSlash(args[0])); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
@@ -107,7 +105,7 @@ and must not be a parent of any other snapshot(s).
 				return err
 			}
 
-			if err := eph.PrintSnapshotDetails(args[0], snapshotId); err != nil {
+			if err := eph.PrintSnapshotDetails(stripTrailingSlash(args[0]), snapshotId); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
@@ -132,7 +130,7 @@ This operation requires overlay remount.
 				return err
 			}
 
-			if err := eph.ApplySnapshot(args[0], snapshotId); err != nil {
+			if err := eph.ApplySnapshot(stripTrailingSlash(args[0]), snapshotId); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

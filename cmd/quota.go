@@ -25,7 +25,7 @@ var (
 				return errors.New("invalid quota format")
 			}
 
-			if err := eph.SetQuota(args[0], setQuota); err != nil {
+			if err := eph.SetQuota(stripTrailingSlash(args[0]), setQuota); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

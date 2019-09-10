@@ -53,7 +53,7 @@ eph create -o /bar
 				return errors.New("invalid quota format")
 			}
 
-			p := args[0]
+			p := stripTrailingSlash(args[0])
 
 			if !createOverlay {
 				if err := layout.PathShouldNotExist(p); err != nil {

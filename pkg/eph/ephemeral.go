@@ -31,7 +31,7 @@ func Create(p, size string) error {
 
 	var err error
 
-	st, err := os.Lstat(p)
+	info, err := os.Lstat(p)
 	if err != nil {
 		return nil
 	}
@@ -105,7 +105,7 @@ func Create(p, size string) error {
 
 	// Create an overlay
 
-	if err = os.Mkdir(p, st.Mode().Perm()); err != nil {
+	if err = os.Mkdir(p, info.Mode().Perm()); err != nil {
 		return err
 	}
 	defer rollback.Remove(p, &err)
@@ -115,8 +115,12 @@ func Create(p, size string) error {
 	}
 	defer rollback.Unmount(p, &err)
 
-	sysStat := st.Sys().(*syscall.Stat_t)
-	if err = os.Chown(p, int(sysStat.Uid), int(sysStat.Gid)); err != nil {
+	if err = os.Chmod(p, info.Mode()); err != nil {
+		return err
+	}
+
+	st := info.Sys().(*syscall.Stat_t)
+	if err = os.Chown(p, int(st.Uid), int(st.Gid)); err != nil {
 		return err
 	}
 

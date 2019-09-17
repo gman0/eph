@@ -85,6 +85,6 @@ eph create -o /bar
 )
 
 func init() {
-	Create.PersistentFlags().StringVarP(&createQuota, "quota", "q", "100M", "ramdisk capacity quota; accepts K,M,G,T units")
+	Create.PersistentFlags().StringVarP(&createQuota, "quota", "q", "100M", "ramdisk capacity quota; accepts K,M,G units")
 	Create.PersistentFlags().BoolVarP(&createOverlay, "overlay", "o", false, "overlay over an existing directory")
 }

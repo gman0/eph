@@ -38,6 +38,6 @@ var (
 )
 
 func init() {
-	SetQuota.PersistentFlags().StringVarP(&setQuota, "quota", "q", "", "quota; accepts K,M,G,T units (e.g. 1G)")
+	SetQuota.PersistentFlags().StringVarP(&setQuota, "quota", "q", "", "quota in bytes; append K,M or G to change the units (e.g. 1G)")
 	SetQuota.MarkPersistentFlagRequired("quota")
 }

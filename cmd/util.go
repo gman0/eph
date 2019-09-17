@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	quotaRegexp = regexp.MustCompile(`\d+[KMGT]`)
+	quotaRegexp = regexp.MustCompile(`\d+[KMG]`)
 )
 
 func checkPathArg(args []string) error {

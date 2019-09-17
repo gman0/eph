@@ -49,9 +49,7 @@ func Create(p, size string) error {
 
 	if baseExists, err := layout.PathShouldNotExist(base); err != nil {
 		if baseExists {
-			if !ignoreBaseExists {
-				return fmt.Errorf("eph root %s already exists", base)
-			}
+			return fmt.Errorf("eph root %s already exists", base)
 		} else {
 			return err
 		}
@@ -131,7 +129,7 @@ func Create(p, size string) error {
 	return nil
 }
 
-func DiscardEphemeral(p string) error {
+func DiscardEphemeral(p string, noUnmount bool) error {
 	if err := checkTargetAndBaseDirs(p, layout.Base(p)); err != nil {
 		return err
 	}
@@ -144,15 +142,17 @@ func DiscardEphemeral(p string) error {
 		}
 	}()
 
-	if err = device.Unmount(p); err != nil {
-		return fmt.Errorf("failed to unmount overlay %s: %v", p, err)
+	if !noUnmount {
+		if err = device.Unmount(p); err != nil {
+			return fmt.Errorf("failed to unmount overlay %s: %v", p, err)
+		}
 	}
 
 	if err = os.Remove(p); err != nil {
 		return fmt.Errorf("failed to remove overlay mount point %s: %v", p, err)
 	}
 
-	if err = destroyEph(p); err != nil {
+	if err = destroyEph(p, noUnmount); err != nil {
 		return err
 	}
 
@@ -254,7 +254,7 @@ func Merge(p string) error {
 		return fmt.Errorf("merge failed, the original data may have been modified: %v\n  recovery:\n    original data: %s\n    ramdisk diff:  %s", err, orig, diff)
 	}
 
-	return destroyEph(p)
+	return destroyEph(p, false)
 }
 
 func compareLayerVersion(stagingPath string, layers []string, lowerLayerIdx int, stagingInfo os.FileInfo) (skip bool, err error) {
@@ -378,19 +378,21 @@ func printStatus(info os.FileInfo, stagingPath, basePath string, status changeSt
 	}
 }
 
-func destroyEph(p string) error {
+func destroyEph(p string, noUnmount bool) error {
 	var (
 		orig    = layout.Orig(p)
 		base    = layout.Base(p)
 		staging = layout.Staging(p)
 	)
 
-	if err := unmountAllSnapshots(layout.SnapshotMounts(p)); err != nil {
-		return err
-	}
+	if !noUnmount {
+		if err := unmountAllSnapshots(layout.SnapshotMounts(p)); err != nil {
+			return err
+		}
 
-	if err := device.Unmount(staging); err != nil {
-		return fmt.Errorf("failed to unmount ramdisk %s: %v", staging, err)
+		if err := device.Unmount(staging); err != nil {
+			return fmt.Errorf("failed to unmount ramdisk %s: %v", staging, err)
+		}
 	}
 
 	if err := os.Remove(staging); err != nil {

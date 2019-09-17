@@ -22,7 +22,7 @@ The original data restored to its initial location and the ramdisk is unmounted.
 				return err
 			}
 
-			if err := eph.DiscardEphemeral(stripTrailingSlash(args[0])); err != nil {
+			if err := eph.DiscardEphemeral(stripTrailingSlash(args[0]), noUnmount); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
@@ -30,4 +30,10 @@ The original data restored to its initial location and the ramdisk is unmounted.
 			return nil
 		},
 	}
+
+	noUnmount bool
 )
+
+func init() {
+	Discard.PersistentFlags().BoolVar(&noUnmount, "no-unmount", false, "assume all the internal mounts are unmounted")
+}

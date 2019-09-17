@@ -29,7 +29,6 @@ type SnapshotsState struct {
 }
 
 func (ss SnapshotsState) write(p string) error {
-
 	if ss, err := json.Marshal(ss); err != nil {
 		return err
 	} else {

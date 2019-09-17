@@ -5,26 +5,26 @@ import (
 	"os"
 )
 
-func DirectoryShouldExist(p string) error {
+func DirectoryShouldExist(p string) (isNotExist bool, err error) {
 	if st, err := os.Lstat(p); err != nil {
-		return err
+		return os.IsNotExist(err), err
 	} else {
 		if !st.IsDir() {
-			return fmt.Errorf("%s is not a directory", p)
+			return false, fmt.Errorf("%s is not a directory", p)
 		}
 	}
 
-	return nil
+	return false, nil
 }
 
-func PathShouldNotExist(p string) error {
+func PathShouldNotExist(p string) (exists bool, err error) {
 	if _, err := os.Lstat(p); err != nil {
 		if !os.IsNotExist(err) {
-			return err
+			return false, err
 		}
 	} else {
-		return fmt.Errorf("%s already exists", p)
+		return true, fmt.Errorf("%s already exists", p)
 	}
 
-	return nil
+	return false, nil
 }

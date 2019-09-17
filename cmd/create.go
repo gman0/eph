@@ -27,11 +27,11 @@ the ramdisk. See OverlayFS docs for more info:
   https://www.kernel.org/doc/Documentation/filesystems/overlayfs.txt
 
 Let /foo/BAR be the directory you want to overlay over.
-eph's staging directory is created in /foo/.eph.BAR
+eph's root directory is created in /foo/.eph.BAR
 The original /foo/BAR is moved to /foo/.eph.BAR/orig
 In case of any unexpected failures, you can always retrieve the original
 data from there. /foo/BAR is now bound to an OverlayFS mount point in
-eph's staging directory.
+eph's root directory.
 `,
 		Example: `
 # Create a blank ramdisk in /foo. /foo must not exist
@@ -56,7 +56,7 @@ eph create -o /bar
 			p := stripTrailingSlash(args[0])
 
 			if !createOverlay {
-				if err := layout.PathShouldNotExist(p); err != nil {
+				if _, err := layout.PathShouldNotExist(p); err != nil {
 					return err
 				}
 

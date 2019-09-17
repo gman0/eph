@@ -22,14 +22,12 @@ const (
 )
 
 func Create(p, size string) error {
-	if err := layout.DirectoryShouldExist(p); err != nil {
-		if os.IsNotExist(err) {
+	if isNotExist, err := layout.DirectoryShouldExist(p); err != nil {
+		if isNotExist {
 			return fmt.Errorf("target path %s does not exist", p)
 		}
 		return err
 	}
-
-	var err error
 
 	info, err := os.Lstat(p)
 	if err != nil {
@@ -49,12 +47,18 @@ func Create(p, size string) error {
 		snapshotsState = layout.SnapshotsState(p)
 	)
 
-	if err = layout.PathShouldNotExist(base); err != nil {
-		return fmt.Errorf("staging directory %s already exists", base)
+	if baseExists, err := layout.PathShouldNotExist(base); err != nil {
+		if baseExists {
+			if !ignoreBaseExists {
+				return fmt.Errorf("eph root %s already exists", base)
+			}
+		} else {
+			return err
+		}
 	}
 
 	if err = os.Mkdir(base, 0755); err != nil {
-		return fmt.Errorf("failed to create staging directory: %v", err)
+		return fmt.Errorf("failed to create eph root: %v", err)
 	}
 	defer rollback.Remove(base, &err)
 
@@ -398,7 +402,7 @@ func destroyEph(p string) error {
 	}
 
 	if err := os.Remove(base); err != nil {
-		return fmt.Errorf("failed to remove staging directory %s: %v", base, err)
+		return fmt.Errorf("failed to remove eph root %s: %v", base, err)
 	}
 
 	return nil

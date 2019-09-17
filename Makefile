@@ -5,9 +5,14 @@ ifeq ($(PREFIX),)
 endif
 
 eph:
-	rm -f eph
-	go build -o eph main.go
+	mkdir -p _output
+	go build -o _output/eph main.go
 
 install: eph
 	install -d $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 eph $(DESTDIR)$(PREFIX)/bin/
+
+clean:
+	rm -rf _output
+
+.PHONY: eph all install clean

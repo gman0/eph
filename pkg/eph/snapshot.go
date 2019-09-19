@@ -131,12 +131,32 @@ func DeleteSnapshot(p string, snapId int) error {
 	return nil
 }
 
+func listHeadLayersForSnapshot(snapId int, ss *SnapshotsState) ([]int, error) {
+	if snapId == 0 {
+		return nil, nil
+	}
+
+	deps, err := snapshotDependencies(snapId, ss)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list snapshot dependencies: %v", err)
+	}
+
+	layers := make([]int, len(deps)+1)
+	layers[0] = snapId
+	copy(layers[1:], deps)
+
+	return layers, nil
+}
+
 func ApplySnapshot(p string, snapId int) error {
+	// Set up
+
 	if err := checkTargetAndBaseDirs(p, layout.Base(p)); err != nil {
 		return err
 	}
 
 	var (
+		head               = layout.Head(p)
 		diff               = layout.OverlayDiff(p)
 		snapshotsStatePath = layout.SnapshotsState(p)
 		snapshotsPath      = layout.Snapshots(p)
@@ -154,11 +174,20 @@ func ApplySnapshot(p string, snapId int) error {
 		}
 	}
 
+	// First, we need to clean up:
+
+	// Unmount overlays
+
 	if err = device.Unmount(p); err != nil {
 		return fmt.Errorf("failed to unmount overlay %s: %v", p, err)
 	}
 
+	if err = device.Unmount(head); err != nil {
+		return fmt.Errorf("failed to unmount HEAD %s: %v", p, err)
+	}
+
 	// Unmount all snapshots, if any
+
 	if err := unmountAllSnapshots(snapshotMountsPath); err != nil {
 		return err
 	}
@@ -169,45 +198,38 @@ func ApplySnapshot(p string, snapId int) error {
 		return fmt.Errorf("failed to clean diff: %v", err)
 	}
 
-	var overlayLowerDirs []string
+	// Get snapshot dependencies and mount them
 
-	if snapId == 0 {
-		overlayLowerDirs = []string{layout.Orig(p)}
-	} else {
-		// Mount snapshots
+	snapLayers, err := listHeadLayersForSnapshot(snapId, ss)
+	if err != nil {
+		return err
+	}
 
-		deps, err := snapshotDependencies(snapId, ss)
-		if err != nil {
-			return fmt.Errorf("failed to list snapshot dependencies: %v", err)
+	overlayLayers := make([]string, len(snapLayers)+1)
+
+	for i := range snapLayers {
+		mountPoint := path.Join(snapshotMountsPath, layout.SnapshotMountpointTarget(snapLayers[i]))
+		overlayLayers[i] = mountPoint
+
+		if err = os.Mkdir(mountPoint, 0700); err != nil {
+			return fmt.Errorf("failed to create snapshot mount point %s: %v", mountPoint, err)
 		}
 
-		snapshotsToMount := make([]int, len(deps)+1)
-		snapshotsToMount[0] = snapId
-		copy(snapshotsToMount[1:], deps)
-
-		n := len(snapshotsToMount) + 1
-		overlayLowerDirs = make([]string, n)
-
-		for i := range snapshotsToMount {
-			mountPoint := path.Join(snapshotMountsPath, layout.SnapshotMountpointTarget(snapshotsToMount[i]))
-			overlayLowerDirs[i] = mountPoint
-
-			if err = os.Mkdir(mountPoint, 0700); err != nil {
-				return fmt.Errorf("failed to create snapshot mount point %s: %v", mountPoint, err)
-			}
-
-			snapshotPath := path.Join(snapshotsPath, layout.SnapshotFilename(snapshotsToMount[i]))
-			if err = device.MountSquash(snapshotPath, mountPoint); err != nil {
-				return fmt.Errorf("failed to mount snapshot %s: %v", snapshotPath, err)
-			}
+		snapshotPath := path.Join(snapshotsPath, layout.SnapshotFilename(snapLayers[i]))
+		if err = device.MountSquash(snapshotPath, mountPoint); err != nil {
+			return fmt.Errorf("failed to mount snapshot %s: %v", snapshotPath, err)
 		}
+	}
 
-		overlayLowerDirs[n-1] = layout.Orig(p)
+	overlayLayers[len(snapLayers)] = layout.Orig(p)
+
+	if err = mountHead(head, overlayLayers); err != nil {
+		return fmt.Errorf("failed to mount HEAD: %v", err)
 	}
 
 	// Mount overlay
 
-	if err = device.Overlay(p, diff, layout.OverlayWorkdir(p), overlayLowerDirs...); err != nil {
+	if err = device.OverlayRW(p, diff, layout.OverlayWorkdir(p), head); err != nil {
 		return fmt.Errorf("failed to mount overlay: %v", err)
 	}
 
@@ -352,4 +374,12 @@ func unmountAllSnapshots(snapshotMountsPath string) error {
 	}
 
 	return nil
+}
+
+func mountHead(into string, lowerDirs []string) error {
+	if len(lowerDirs) == 1 {
+		return device.BindRO(lowerDirs[0], into)
+	}
+
+	return device.OverlayRO(into, lowerDirs...)
 }

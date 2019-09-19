@@ -8,6 +8,29 @@ import (
 	"path"
 )
 
+func mkDirs(perm os.FileMode, names ...string) error {
+	var (
+		i   int
+		err error
+	)
+
+	defer func() {
+		if err != nil {
+			for ; i >= 0; i-- {
+				os.Remove(names[i])
+			}
+		}
+	}()
+
+	for i = range names {
+		if err = os.Mkdir(names[i], perm); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func removeAllIn(dir string) error {
 	iter, err := diriter.NewIter(dir)
 	if err != nil {

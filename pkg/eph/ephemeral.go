@@ -40,6 +40,7 @@ func Create(p, size string) error {
 		orig           = layout.Orig(p)
 		base           = layout.Base(p)
 		staging        = layout.Staging(p)
+		head           = layout.Head(p)
 		overlayDiff    = layout.OverlayDiff(p)
 		overlayWorkdir = layout.OverlayWorkdir(p)
 		snapshotsBase  = layout.Snapshots(p)
@@ -77,27 +78,11 @@ func Create(p, size string) error {
 	}
 	defer rollback.Unmount(staging, &err)
 
-	// Create overlay, snapshot dirs and an empty snapshot state
-
-	if err = os.Mkdir(overlayDiff, 0700); err != nil {
+	if err = mkDirs(0700, head, overlayDiff, overlayWorkdir, snapshotsBase, snapshotMounts); err != nil {
 		return err
 	}
-	defer rollback.Remove(overlayDiff, &err)
 
-	if err = os.Mkdir(overlayWorkdir, 0700); err != nil {
-		return err
-	}
-	defer rollback.Remove(overlayWorkdir, &err)
-
-	if err = os.Mkdir(snapshotsBase, 0700); err != nil {
-		return err
-	}
-	defer rollback.Remove(snapshotsBase, &err)
-
-	if err = os.Mkdir(snapshotMounts, 0700); err != nil {
-		return err
-	}
-	defer rollback.Remove(snapshotMounts, &err)
+	// Create an empty snapshot state
 
 	ss := SnapshotsState{}
 	if err = ss.write(snapshotsState); err != nil {
@@ -112,7 +97,12 @@ func Create(p, size string) error {
 	}
 	defer rollback.Remove(p, &err)
 
-	if err = device.Overlay(p, overlayDiff, overlayWorkdir, orig); err != nil {
+	if err = device.BindRO(orig, head); err != nil {
+		return fmt.Errorf("failed to mount HEAD: %v", err)
+	}
+	defer rollback.Unmount(head, &err)
+
+	if err = device.OverlayRW(p, overlayDiff, overlayWorkdir, head); err != nil {
 		return fmt.Errorf("overlay mount failed: %v", err)
 	}
 	defer rollback.Unmount(p, &err)
@@ -183,7 +173,7 @@ func Merge(p string) error {
 		return fmt.Errorf("failed to read snapshots state: %v", err)
 	}
 
-	layers, err := overlayLayers(ss, p)
+	layers, err := snapshotLayers(ss, p)
 	if err != nil {
 		return err
 	}
@@ -278,7 +268,7 @@ func compareLayerVersion(stagingPath string, layers []string, lowerLayerIdx int,
 	return false, nil
 }
 
-func overlayLayers(ss *SnapshotsState, p string) ([]string, error) {
+func snapshotLayers(ss *SnapshotsState, p string) ([]string, error) {
 	snapshotMounts := layout.SnapshotMounts(p)
 	diff := layout.OverlayDiff(p)
 
@@ -321,7 +311,7 @@ func PrintStatus(p string) error {
 		return fmt.Errorf("failed to read snapshots state: %v", err)
 	}
 
-	layers, err := overlayLayers(ss, p)
+	layers, err := snapshotLayers(ss, p)
 	if err != nil {
 		return err
 	}
@@ -380,12 +370,17 @@ func printStatus(info os.FileInfo, stagingPath, basePath string, status changeSt
 
 func destroyEph(p string, noUnmount bool) error {
 	var (
+		head    = layout.Head(p)
 		orig    = layout.Orig(p)
 		base    = layout.Base(p)
 		staging = layout.Staging(p)
 	)
 
 	if !noUnmount {
+		if err := device.Unmount(head); err != nil {
+			return fmt.Errorf("failed to unmount HEAD %s: %v", head, err)
+		}
+
 		if err := unmountAllSnapshots(layout.SnapshotMounts(p)); err != nil {
 			return err
 		}

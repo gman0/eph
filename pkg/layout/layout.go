@@ -10,6 +10,7 @@ const (
 	fmtOrig = "%s/orig"
 
 	fmtStaging        = "%s/staging"
+	fmtOverlayHead    = "%s/staging/head"
 	fmtOverlayDiff    = "%s/staging/diff"
 	fmtOverlayWorkdir = "%s/staging/work"
 
@@ -36,6 +37,8 @@ func Base(p string) string {
 func Orig(p string) string { return fmtPath(fmtOrig, p) }
 
 func Staging(p string) string { return fmtPath(fmtStaging, p) }
+
+func Head(p string) string { return fmtPath(fmtOverlayHead, p) }
 
 func OverlayDiff(p string) string { return fmtPath(fmtOverlayDiff, p) }
 

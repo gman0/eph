@@ -51,9 +51,9 @@ func readSnapshotsState(stateFilePath string) (*SnapshotsState, error) {
 	return ss, json.Unmarshal(b, ss)
 }
 
-func NewSnapshot(p, label, comprAlg string, remount bool) error {
+func NewSnapshot(p, label, comprAlg string, remount bool) (int, error) {
 	if err := checkTargetAndBaseDirs(p, layout.Base(p)); err != nil {
-		return err
+		return 0, err
 	}
 
 	var (
@@ -64,7 +64,7 @@ func NewSnapshot(p, label, comprAlg string, remount bool) error {
 
 	ss, err := readSnapshotsState(snapshotsStatePath)
 	if err != nil {
-		return fmt.Errorf("failed to read snapshots state: %v", err)
+		return 0, fmt.Errorf("failed to read snapshots state: %v", err)
 	}
 
 	ss.Counter++
@@ -78,7 +78,7 @@ func NewSnapshot(p, label, comprAlg string, remount bool) error {
 
 	snapPath := path.Join(snapshotsDir, layout.SnapshotFilename(snap.Id))
 	if err := device.Squash(diff, snapPath, comprAlg); err != nil {
-		return fmt.Errorf("failed to create snapshot: %v", err)
+		return 0, fmt.Errorf("failed to create snapshot: %v", err)
 	}
 
 	if ss.Snapshots == nil {
@@ -88,12 +88,10 @@ func NewSnapshot(p, label, comprAlg string, remount bool) error {
 	ss.Snapshots[snap.Id] = snap
 	if err := ss.write(snapshotsStatePath); err != nil {
 		os.Remove(snapPath)
-		return err
+		return 0, err
 	}
 
-	fmt.Println(snap.Id)
-
-	return nil
+	return snap.Id, nil
 }
 
 // Only leaves may be deleted, and the leaf must not be AppliedSnapshot

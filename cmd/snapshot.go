@@ -48,9 +48,19 @@ Important: make sure no writes occur to the ramdisk while
 				return err
 			}
 
-			if err := eph.NewSnapshot(stripTrailingSlash(args[0]), snapshotNewLabel, snapshotNewCompressionAlg, snapshotNewOnline); err != nil {
+			snapId, err := eph.NewSnapshot(stripTrailingSlash(args[0]), snapshotNewLabel, snapshotNewCompressionAlg, snapshotNewOnline)
+			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
+			}
+
+			fmt.Println(snapId)
+
+			if snapshotNewAndApply {
+				if err = eph.ApplySnapshot(args[0], snapId); err != nil {
+					fmt.Fprintf(os.Stderr, "failed to apply the snapshot: %v", err)
+					os.Exit(1)
+				}
 			}
 
 			return nil
@@ -142,6 +152,7 @@ This operation requires overlay remount.
 	snapshotNewLabel          string
 	snapshotNewCompressionAlg string
 	snapshotNewOnline         bool
+	snapshotNewAndApply       bool
 
 	snapshotId int
 )
@@ -155,6 +166,7 @@ func init() {
 
 	snapshotNew.PersistentFlags().StringVarP(&snapshotNewLabel, "label", "l", "", "snapshot label")
 	snapshotNew.PersistentFlags().StringVarP(&snapshotNewCompressionAlg, "compression", "c", "xz", "compression algorithm to use for the new snapshot; available gzip, lzo, xz")
+	snapshotNew.PersistentFlags().BoolVarP(&snapshotNewAndApply, "apply", "a", false, "apply the snapshot")
 
 	snapshotDelete.PersistentFlags().IntVarP(&snapshotId, "id", "i", 0, "snapshot ID")
 	snapshotDelete.MarkPersistentFlagRequired("id")

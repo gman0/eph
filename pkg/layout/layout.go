@@ -6,28 +6,34 @@ import (
 )
 
 const (
-	fmtBase = ".eph.%[1]s"
-	fmtOrig = ".eph.%[1]s/orig"
-	fmtHead = ".eph.%[1]s/head"
+	fmtBase = ".eph.%s"
+	fmtOrig = "%s/orig"
 
-	fmtStaging        = ".eph.%[1]s/staging"
-	fmtOverlayDiff    = ".eph.%[1]s/staging/diff"
-	fmtOverlayWorkdir = ".eph.%[1]s/staging/work"
+	fmtStaging        = "%s/staging"
+	fmtOverlayDiff    = "%s/staging/diff"
+	fmtOverlayWorkdir = "%s/staging/work"
 
-	fmtSnapshots      = ".eph.%[1]s/staging/snapshots"
-	fmtSnapshotsState = ".eph.%[1]s/staging/snapshots/state"
-	fmtSnapshotMounts = ".eph.%[1]s/staging/snapshots/mounts"
+	fmtSnapshots      = "%s/staging/snapshots"
+	fmtSnapshotsState = "%s/staging/snapshots/state"
+	fmtSnapshotMounts = "%s/staging/snapshots/mounts"
+)
+
+var (
+	BaseOverride string
 )
 
 func fmtPath(format, p string) string {
-	return path.Join(path.Dir(p), fmt.Sprintf(format, path.Base(p)))
+	return fmt.Sprintf(format, Base(p))
 }
 
-func Base(p string) string { return fmtPath(fmtBase, p) }
+func Base(p string) string {
+	if BaseOverride != "" {
+		return BaseOverride
+	}
+	return path.Join(path.Dir(p), fmt.Sprintf(fmtBase, path.Base(p)))
+}
 
 func Orig(p string) string { return fmtPath(fmtOrig, p) }
-
-func Head(p string) string { return fmtPath(fmtHead, p) }
 
 func Staging(p string) string { return fmtPath(fmtStaging, p) }
 

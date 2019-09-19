@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"github.com/gman0/eph/pkg/layout"
 	"regexp"
 )
 
@@ -16,6 +17,10 @@ func checkPathArg(args []string) error {
 
 	if len(args) != 1 {
 		return errors.New("expected exactly one path argument")
+	}
+
+	if args[0] == layout.BaseOverride {
+		return errors.New("eph root collision")
 	}
 
 	return nil

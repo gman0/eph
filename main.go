@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gman0/eph/cmd"
+	"github.com/gman0/eph/pkg/layout"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -52,6 +53,8 @@ To load ZSH completion, run:
 	rootCmd.AddCommand(&cmd.SetQuota)
 	rootCmd.AddCommand(&completionBash)
 	rootCmd.AddCommand(&completionZSH)
+
+	rootCmd.PersistentFlags().StringVarP(&layout.BaseOverride, "eph-root", "r", "", "override default eph root location")
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

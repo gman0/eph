@@ -5,7 +5,7 @@ import (
 	"github.com/gman0/eph/pkg/device"
 	"github.com/gman0/eph/pkg/diriter"
 	"github.com/gman0/eph/pkg/layout"
-	"github.com/gman0/eph/pkg/rollback"
+	"github.com/gman0/eph/pkg/onerror"
 	"os"
 	"os/exec"
 	"path"
@@ -34,8 +34,6 @@ func Create(p, size string) error {
 		return nil
 	}
 
-	// Create base
-
 	var (
 		orig           = layout.Orig(p)
 		base           = layout.Base(p)
@@ -56,67 +54,35 @@ func Create(p, size string) error {
 		}
 	}
 
-	if err = os.Mkdir(base, 0755); err != nil {
-		return fmt.Errorf("failed to create eph root: %v", err)
-	}
-	defer rollback.Remove(base, &err)
-
-	if err = os.Rename(p, orig); err != nil {
-		return fmt.Errorf("failed to move orig: %v", err)
-	}
-	defer rollback.Rename(orig, p, &err)
-
-	if err = os.Mkdir(staging, 0700); err != nil {
-		return err
-	}
-	defer rollback.Remove(staging, &err)
-
-	// Set up ramdisk
-
-	if err = device.MountRamdisk(staging, size); err != nil {
-		return fmt.Errorf("failed to mount ramdisk: %v", err)
-	}
-	defer rollback.Unmount(staging, &err)
-
-	if err = mkDirs(0700, head, overlayDiff, overlayWorkdir, snapshotsBase, snapshotMounts); err != nil {
-		return err
+	wrapE := func(msg string, err error) error {
+		if err != nil {
+			return fmt.Errorf("%s: %v", msg, err)
+		}
+		return nil
 	}
 
-	// Create an empty snapshot state
+	var (
+		ss = SnapshotsState{}
+		st = info.Sys().(*syscall.Stat_t)
+	)
 
-	ss := SnapshotsState{}
-	if err = ss.write(snapshotsState); err != nil {
-		return fmt.Errorf("failed to write snapshots state: %v", err)
-	}
-	defer rollback.Remove(snapshotsState, &err)
+	do := onerror.Rollback{}
+	do.
+		// Prepare ramdisk
+		TryMkDir(base, 0755, "failed to create eph root").
+		TryMkDir(staging, 0700).
+		TryMountRamdisk(staging, size, "failed to mount ramdisk").
+		Try(func() error { return mkDirs(0700, head, overlayDiff, overlayWorkdir, snapshotsBase, snapshotMounts) }, func() {}).
+		Try(func() error { return wrapE("failed to write snapshots state", ss.write(snapshotsState)) }, func() { os.Remove(snapshotsState) }).
+		// Move the original data and overlay it with the ramdisk
+		TryRename(p, orig, "failed to move orig").
+		TryMkDir(p, info.Mode().Perm()).
+		TryBindRO(orig, head, "failed to mount HEAD").
+		TryOverlayRW(p, overlayDiff, overlayWorkdir, head, "overlay mount failed").
+		TryChmod(p, info.Mode()).
+		TryChown(p, int(st.Uid), int(st.Gid))
 
-	// Create an overlay
-
-	if err = os.Mkdir(p, info.Mode().Perm()); err != nil {
-		return err
-	}
-	defer rollback.Remove(p, &err)
-
-	if err = device.BindRO(orig, head); err != nil {
-		return fmt.Errorf("failed to mount HEAD: %v", err)
-	}
-	defer rollback.Unmount(head, &err)
-
-	if err = device.OverlayRW(p, overlayDiff, overlayWorkdir, head); err != nil {
-		return fmt.Errorf("overlay mount failed: %v", err)
-	}
-	defer rollback.Unmount(p, &err)
-
-	if err = os.Chmod(p, info.Mode()); err != nil {
-		return err
-	}
-
-	st := info.Sys().(*syscall.Stat_t)
-	if err = os.Chown(p, int(st.Uid), int(st.Gid)); err != nil {
-		return err
-	}
-
-	return nil
+	return do.Err()
 }
 
 func DiscardEphemeral(p string, noUnmount bool) error {

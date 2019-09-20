@@ -53,6 +53,10 @@ eph create -o /bar
 				return errors.New("invalid quota format")
 			}
 
+			if createTarget != "" && !createOverlay {
+				return errors.New("--target option requires --overlay")
+			}
+
 			p := stripTrailingSlash(args[0])
 
 			if !createOverlay {
@@ -66,7 +70,8 @@ eph create -o /bar
 				}
 			}
 
-			if err := eph.Create(p, createQuota); err != nil {
+			// Note: absPath() is needed for --target, so that the symlink to source is in absolute path
+			if err := eph.Create(absPath(p), createTarget, createQuota); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 
 				if !createOverlay {
@@ -82,9 +87,11 @@ eph create -o /bar
 
 	createQuota   string
 	createOverlay bool
+	createTarget  string
 )
 
 func init() {
 	Create.PersistentFlags().StringVarP(&createQuota, "quota", "q", "100M", "ramdisk capacity quota; accepts K,M,G units")
 	Create.PersistentFlags().BoolVarP(&createOverlay, "overlay", "o", false, "overlay over an existing directory")
+	Create.PersistentFlags().StringVarP(&createTarget, "target", "t", "", "mount overlay target at specified location instead of the path supplied to the create command. The directory in create path is left unmodified.")
 }

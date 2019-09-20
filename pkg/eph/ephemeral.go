@@ -21,15 +21,29 @@ const (
 	statusDeleted                   = 'D'
 )
 
-func Create(p, size string) error {
-	if isNotExist, err := layout.DirectoryShouldExist(p); err != nil {
+func Create(source, targetOverride, size string) error {
+	if isNotExist, err := layout.DirectoryShouldExist(source); err != nil {
 		if isNotExist {
-			return fmt.Errorf("target path %s does not exist", p)
+			return fmt.Errorf("target path %s does not exist", source)
 		}
 		return err
 	}
 
-	info, err := os.Lstat(p)
+	var p string
+	if targetOverride != "" {
+		if exists, err := layout.PathShouldNotExist(targetOverride); err != nil {
+			if exists {
+				return fmt.Errorf("target override %s already exists", targetOverride)
+			}
+			return err
+		}
+
+		p = targetOverride
+	} else {
+		p = source
+	}
+
+	info, err := os.Lstat(source)
 	if err != nil {
 		return nil
 	}
@@ -67,15 +81,23 @@ func Create(p, size string) error {
 	)
 
 	do := onerror.Rollback{}
+
+	// Prepare ramdisk
 	do.
-		// Prepare ramdisk
 		TryMkDir(base, 0755, "failed to create eph root").
 		TryMkDir(staging, 0700).
 		TryMountRamdisk(staging, size, "failed to mount ramdisk").
 		Try(func() error { return mkDirs(0700, head, overlayDiff, overlayWorkdir, snapshotsBase, snapshotMounts) }, func() {}).
-		Try(func() error { return wrapE("failed to write snapshots state", ss.write(snapshotsState)) }, func() { os.Remove(snapshotsState) }).
-		// Move the original data and overlay it with the ramdisk
-		TryRename(p, orig, "failed to move orig").
+		Try(func() error { return wrapE("failed to write snapshots state", ss.write(snapshotsState)) }, func() { os.Remove(snapshotsState) })
+
+	if targetOverride != "" {
+		do.TrySymlink(source, orig, "failed to symlink orig")
+	} else {
+		do.TryRename(p, orig, "failed to move orig")
+	}
+
+	// Move the original data and overlay it with the ramdisk
+	do.
 		TryMkDir(p, info.Mode().Perm()).
 		TryBindRO(orig, head, "failed to mount HEAD").
 		TryOverlayRW(p, overlayDiff, overlayWorkdir, head, "overlay mount failed").
@@ -360,8 +382,19 @@ func destroyEph(p string, noUnmount bool) error {
 		return fmt.Errorf("failed to remove ramdisk mount point %s: %v", staging, err)
 	}
 
-	if err := os.Rename(orig, p); err != nil {
-		return fmt.Errorf("failed to restore orig %s: %v", orig, err)
+	origInfo, err := os.Lstat(orig)
+	if err != nil {
+		return err
+	}
+
+	if origInfo.Mode()&os.ModeSymlink == os.ModeSymlink {
+		if err := os.Remove(orig); err != nil {
+			return fmt.Errorf("failed to remove orig symlnk %s: %v", orig, err)
+		}
+	} else {
+		if err := os.Rename(orig, p); err != nil {
+			return fmt.Errorf("failed to restore orig %s: %v", orig, err)
+		}
 	}
 
 	if err := os.Remove(base); err != nil {

@@ -41,6 +41,10 @@ func (o *Rollback) TryMkDir(name string, perm os.FileMode, errMsg ...string) *Ro
 	return o.Try(func() error { return wrapErr(errMsg, os.Mkdir(name, perm)) }, func() { os.Remove(name) })
 }
 
+func (o *Rollback) TrySymlink(oldName, newName string, errMsg ...string) *Rollback {
+	return o.Try(func() error { return wrapErr(errMsg, os.Symlink(oldName, newName)) }, func() { os.Remove(newName) })
+}
+
 func (o *Rollback) TryRename(oldName, newName string, errMsg ...string) *Rollback {
 	return o.Try(func() error { return wrapErr(errMsg, os.Rename(oldName, newName)) }, func() { os.Rename(newName, oldName) })
 }

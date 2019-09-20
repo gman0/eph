@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"github.com/gman0/eph/pkg/layout"
+	"os"
+	"path"
 	"regexp"
 )
 
@@ -37,4 +40,18 @@ func stripTrailingSlash(p string) string {
 
 func checkQuotaFormat(quota string) bool {
 	return quotaRegexp.MatchString(quota)
+}
+
+func absPath(p string) string {
+	if path.IsAbs(p) {
+		return p
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "couldn't get working directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	return path.Join(wd, p)
 }

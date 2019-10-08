@@ -331,7 +331,11 @@ func PrintStatus(p string) error {
 
 			printStatus(iter.FileInfo(), stagingPath, layers[i], status)
 
-			iter.Increment()
+			if iter.FileInfo().IsDir() && status == statusAdded {
+				iter.OrthogonalIncrement()
+			} else {
+				iter.Increment()
+			}
 		}
 	}
 

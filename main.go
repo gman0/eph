@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"github.com/gman0/eph/cmd"
 	"github.com/gman0/eph/pkg/layout"
 	"github.com/spf13/cobra"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -17,31 +20,29 @@ eph (ephemeral) is a ramdisk management tool for Linux
 		Version: "WIP",
 	}
 
-	completionBash := cobra.Command{
-		Use:   "completion-bash",
-		Short: "generate Bash completion script",
-		Long: `
-generate Bash completion script
+	completion := cobra.Command{
+		Use:   "completion SHELL",
+		Short: "output shell completion code for the specified shell (bash or zsh)",
+		Example: `
+# Completion for ZSH shell
+. <(eph completion zsh)
 
-To load Bash completion, run:
-. <(eph completion-bash)
+# Completion for Bash shell
+. <(eph completion bash)
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return rootCmd.GenBashCompletion(os.Stdout)
-		},
-	}
+			if len(args) != 1 {
+				return errors.New("no shell specified")
+			}
 
-	completionZSH := cobra.Command{
-		Use:   "completion-zsh",
-		Short: "generate ZSH completion script",
-		Long: `
-generate ZSH completion script
-
-To load ZSH completion, run:
-. <(eph completion-zsh)
-`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return rootCmd.GenZshCompletion(os.Stdout)
+			switch strings.ToLower(args[0]) {
+			case "bash":
+				return rootCmd.GenBashCompletion(os.Stdout)
+			case "zsh":
+				return rootCmd.GenZshCompletion(os.Stdout)
+			default:
+				return fmt.Errorf("unknown shell %s", args[0])
+			}
 		},
 	}
 
@@ -51,8 +52,7 @@ To load ZSH completion, run:
 	rootCmd.AddCommand(&cmd.Merge)
 	rootCmd.AddCommand(&cmd.Snapshot)
 	rootCmd.AddCommand(&cmd.SetQuota)
-	rootCmd.AddCommand(&completionBash)
-	rootCmd.AddCommand(&completionZSH)
+	rootCmd.AddCommand(&completion)
 
 	rootCmd.PersistentFlags().StringVarP(&layout.BaseOverride, "eph-root", "r", "", "override default eph root location")
 
